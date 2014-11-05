@@ -7,6 +7,7 @@ dir="$extdir/s9e/mediaembed"
 files="
 	LICENSE
 	README.md
+	composer.json
 	config/services.yml
 	event/subscriber.php
 	ext.php
