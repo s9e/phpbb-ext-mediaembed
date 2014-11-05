@@ -12,6 +12,14 @@ use s9e\TextFormatter\Bundles\MediaPack;
 
 class subscriber implements EventSubscriberInterface
 {
+	public static function autoload()
+	{
+		if (!class_exists('s9e\\TextFormatter\\Bundles\\MediaPack'))
+		{
+			include_once __DIR__ . '/../vendor/s9e/TextFormatter/src/autoloader.php';
+		}
+	}
+
 	public static function getSubscribedEvents()
 	{
 		return array(
@@ -66,6 +74,7 @@ class subscriber implements EventSubscriberInterface
 			'((?<=^|<br />)<!-- m -->.*?href="([^"]+)".*<!-- m -->(?=<br />|$))m',
 			function ($m)
 			{
+				self::autoload();
 				$xml = MediaPack::parse($m[1]);
 
 				return ($xml[1] === 'r')
@@ -87,6 +96,7 @@ class subscriber implements EventSubscriberInterface
 			'(<!-- s9e:mediaembed:([^ ]++) --><!-- m -->.*?<!-- m -->)',
 			function ($m)
 			{
+				self::autoload();
 				return MediaPack::render(base64_decode($m[1]));
 			},
 			$text
