@@ -62,7 +62,7 @@ class subscriber implements EventSubscriberInterface
 			return $text;
 		}
 
-			return preg_replace_callback(
+		return preg_replace_callback(
 			'((?<=^|<br />)<!-- m -->.*?href="([^"]+)".*<!-- m -->(?=<br />|$))m',
 			function ($m)
 			{
