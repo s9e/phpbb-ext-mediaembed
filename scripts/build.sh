@@ -40,6 +40,7 @@ do
 done
 
 cd "$tmpdir"
-kzip -r -y "$rootdir/releases/$releasename" ext
+kzip -r -y "$rootdir/releases/$releasename.zip" ext
+advzip -z4 "$rootdir/releases/$releasename.zip"
 
 rm -rf "$extdir"
