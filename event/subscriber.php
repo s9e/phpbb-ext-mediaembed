@@ -74,7 +74,7 @@ class subscriber implements EventSubscriberInterface
 			'((?<=^|<br />)<!-- m -->.*?href="([^"]+)".*<!-- m -->(?=<br />|$))m',
 			function ($m)
 			{
-				self::autoload();
+				subscriber::autoload();
 				$xml = MediaPack::parse($m[1]);
 
 				return ($xml[1] === 'r')
@@ -96,7 +96,7 @@ class subscriber implements EventSubscriberInterface
 			'(<!-- s9e:mediaembed:([^ ]++) --><!-- m -->.*?<!-- m -->)',
 			function ($m)
 			{
-				self::autoload();
+				subscriber::autoload();
 				return MediaPack::render(base64_decode($m[1]));
 			},
 			$text
