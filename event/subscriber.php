@@ -43,12 +43,7 @@ class subscriber implements EventSubscriberInterface
 
 	public function onPreview($event)
 	{
-		$text = str_replace(
-			array('<br /><!-- m -->', '<!-- m --><br />'),
-			array("\n<!-- m -->",     "<!-- m -->\n"),
-			$event['text']
-		);
-		$event['text'] = $this->render($this->parse($text));
+		$event['text'] = $this->render($this->parse($event['text']));
 	}
 
 	public function onStorage($event)
@@ -71,7 +66,7 @@ class subscriber implements EventSubscriberInterface
 		}
 
 		return preg_replace_callback(
-			'((?<=^|<br />)<!-- m -->.*?href="([^"]+)".*<!-- m -->(?=<br />|$))m',
+			'(<!-- m -->.*?href="([^"]+).*?<!-- m -->)',
 			function ($m)
 			{
 				subscriber::autoload();
@@ -93,7 +88,7 @@ class subscriber implements EventSubscriberInterface
 		}
 
 		return preg_replace_callback(
-			'(<!-- s9e:mediaembed:([^ ]++) --><!-- m -->.*?<!-- m -->)',
+			'(<!-- s9e:mediaembed:([^ ]+) --><!-- m -->.*?<!-- m -->)',
 			function ($m)
 			{
 				subscriber::autoload();
@@ -110,6 +105,6 @@ class subscriber implements EventSubscriberInterface
 			return $text;
 		}
 
-		return preg_replace('(<!-- s9e:mediaembed:([^ ]++) -->)', '', $text);
+		return preg_replace('(<!-- s9e:mediaembed:([^ ]+) -->)', '', $text);
 	}
 }
