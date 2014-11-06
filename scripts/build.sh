@@ -3,8 +3,14 @@ git submodule update --remote
 
 tmpdir="/tmp"
 extdir="$tmpdir/ext"
-releasename="s9e-mediaembed-$(date -u +%Y%m%d)"
+version="$(date -u +%Y%m%d)$1"
+releasename="s9e-mediaembed-$version"
 dir="$extdir/s9e/mediaembed"
+
+rootdir="$(realpath $(dirname $(dirname $0)))"
+cd "$rootdir"
+
+sed -i "s/\"version\": *\"[^\"]*/\"version\": \"$version/" composer.json
 
 files="
 	LICENSE
@@ -27,9 +33,6 @@ files="
 	vendor/s9e/TextFormatter/src/Unparser.php
 	vendor/s9e/TextFormatter/src/autoloader.php
 ";
-
-rootdir="$(realpath $(dirname $(dirname $0)))"
-cd "$rootdir"
 
 rm -rf "$extdir"
 for file in $files;
