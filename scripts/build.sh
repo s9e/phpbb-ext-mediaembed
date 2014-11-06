@@ -1,4 +1,6 @@
 #!/bin/bash
+git submodule update --remote
+
 tmpdir="/tmp"
 extdir="$tmpdir/ext"
 releasename="s9e-mediaembed-$(date -u +%Y%m%d)"
