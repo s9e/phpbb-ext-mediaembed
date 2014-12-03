@@ -2,10 +2,10 @@
 git submodule update --remote
 
 tmpdir="/tmp"
-extdir="$tmpdir/ext"
+extdir="$tmpdir/s9e"
 version="$(date -u +%Y%m%d)$1"
 releasename="s9e-mediaembed-$version"
-dir="$extdir/s9e/mediaembed"
+dir="$extdir/mediaembed"
 
 rootdir="$(realpath $(dirname $(dirname $0)))"
 cd "$rootdir"
@@ -43,7 +43,7 @@ do
 done
 
 cd "$tmpdir"
-kzip -r -y "$rootdir/releases/$releasename.zip" ext
+kzip -r -y "$rootdir/releases/$releasename.zip" s9e
 advzip -z4 "$rootdir/releases/$releasename.zip"
 
 rm -rf "$extdir"
