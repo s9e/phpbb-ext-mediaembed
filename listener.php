@@ -60,7 +60,7 @@ class listener implements EventSubscriberInterface
 		if (!class_exists('s9e\\TextFormatter\\Parser', false))
 		{
 			include_once __DIR__ . '/bundle.php';
-			include __DIR__ . '/rendering.php';
+			include __DIR__ . '/parsing.php';
 		}
 
 		return preg_replace_callback(
