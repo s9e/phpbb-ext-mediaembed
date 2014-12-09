@@ -1,5 +1,5 @@
 services:
   s9e.mediaembed.listener:
-    class: s9e\mediaembed\event\subscriber
+    class: s9e\mediaembed\listener
     tags:
       - { name: event.listener }

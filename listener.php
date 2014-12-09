@@ -5,21 +5,13 @@
 * @copyright Copyright (c) 2014 The s9e Authors
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
-namespace s9e\mediaembed\event;
+namespace s9e\mediaembed;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use s9e\TextFormatter\Bundles\MediaPack;
 
-class subscriber implements EventSubscriberInterface
+class listener implements EventSubscriberInterface
 {
-	public static function autoload()
-	{
-		if (!class_exists('s9e\\TextFormatter\\Bundles\\MediaPack'))
-		{
-			include_once __DIR__ . '/../vendor/s9e/TextFormatter/src/autoloader.php';
-		}
-	}
-
 	public static function getSubscribedEvents()
 	{
 		return array(
@@ -65,11 +57,15 @@ class subscriber implements EventSubscriberInterface
 			return $text;
 		}
 
+		if (!class_exists('s9e\\TextFormatter\\Parser', false))
+		{
+			include_once __DIR__ . '/parsing.php';
+		}
+
 		return preg_replace_callback(
 			'(<!-- m -->.*?href="([^"]+).*?<!-- m -->)',
 			function ($m)
 			{
-				subscriber::autoload();
 				$xml = MediaPack::parse($m[1]);
 
 				return ($xml[1] === 'r')
@@ -87,11 +83,15 @@ class subscriber implements EventSubscriberInterface
 			return $text;
 		}
 
+		if (!class_exists('s9e\\TextFormatter\\Renderer', false))
+		{
+			include_once __DIR__ . '/rendering.php';
+		}
+
 		return preg_replace_callback(
 			'(<!-- s9e:mediaembed:([^ ]+) --><!-- m -->.*?<!-- m -->)',
 			function ($m)
 			{
-				subscriber::autoload();
 				return MediaPack::render(base64_decode($m[1]));
 			},
 			$text
