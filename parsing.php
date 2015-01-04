@@ -30,7 +30,8 @@ class Parser
 
 	const RULES_INHERITANCE = 32;
 
-	const WHITESPACE = " \n\t";
+	const WHITESPACE = ' 
+	';
 
 	protected $cntOpen;
 
