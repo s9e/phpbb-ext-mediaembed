@@ -2,7 +2,7 @@
 
 /*
 * @package   s9e\TextFormatter
-* @copyright Copyright (c) 2010-2014 The s9e Authors
+* @copyright Copyright (c) 2010-2015 The s9e Authors
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
 namespace s9e\TextFormatter;
@@ -1274,7 +1274,7 @@ class Parser
 
 /*
 * @package   s9e\TextFormatter
-* @copyright Copyright (c) 2010-2014 The s9e Authors
+* @copyright Copyright (c) 2010-2015 The s9e Authors
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
 namespace s9e\TextFormatter\Parser;
@@ -1584,7 +1584,7 @@ class BuiltInFilters
 
 /*
 * @package   s9e\TextFormatter
-* @copyright Copyright (c) 2010-2014 The s9e Authors
+* @copyright Copyright (c) 2010-2015 The s9e Authors
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
 namespace s9e\TextFormatter\Parser;
@@ -1680,7 +1680,7 @@ class Logger
 
 /*
 * @package   s9e\TextFormatter
-* @copyright Copyright (c) 2010-2014 The s9e Authors
+* @copyright Copyright (c) 2010-2015 The s9e Authors
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
 namespace s9e\TextFormatter\Parser;
@@ -1908,7 +1908,7 @@ class Tag
 
 /*
 * @package   s9e\TextFormatter
-* @copyright Copyright (c) 2010-2014 The s9e Authors
+* @copyright Copyright (c) 2010-2015 The s9e Authors
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
 namespace s9e\TextFormatter\Plugins\MediaEmbed;
@@ -2098,7 +2098,7 @@ class Parser extends ParserBase
 
 /*
 * @package   s9e\TextFormatter
-* @copyright Copyright (c) 2010-2014 The s9e Authors
+* @copyright Copyright (c) 2010-2015 The s9e Authors
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
 namespace s9e\TextFormatter\Plugins;
