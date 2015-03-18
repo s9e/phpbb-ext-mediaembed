@@ -179,9 +179,9 @@ class Parser
 	public static function executeAttributePreprocessors(Tag $tag, array $tagConfig)
 	{
 		if (!empty($tagConfig['attributePreprocessors']))
-			foreach ($tagConfig['attributePreprocessors'] as $_2698889989)
+			foreach ($tagConfig['attributePreprocessors'] as $_a0ddcb05)
 			{
-				list($attrName, $regexp) = $_2698889989;
+				list($attrName, $regexp) = $_a0ddcb05;
 				if (!$tag->hasAttribute($attrName))
 					continue;
 
@@ -339,7 +339,7 @@ class Parser
 				$cnt
 			);
 		}
-		while ($cnt);
+		while ($cnt > 0);
 
 		if (\strpos($this->output, '</i><i>') !== \false)
 			$this->output = \str_replace('</i><i>', '', $this->output);
@@ -1050,7 +1050,7 @@ class Parser
 		$this->outputTag($tag);
 		$this->popContext();
 
-		if ($closeTags && $this->currentFixingCost < $this->maxFixingCost)
+		if (!empty($closeTags) && $this->currentFixingCost < $this->maxFixingCost)
 		{
 			$ignorePos = $this->pos;
 
@@ -1238,7 +1238,7 @@ class Parser
 		$this->tagStackIsSorted = \true;
 	}
 
-	static protected function compareTags(Tag $a, Tag $b)
+	protected static function compareTags(Tag $a, Tag $b)
 	{
 		$aPos = $a->getPos();
 		$bPos = $b->getPos();
@@ -1448,60 +1448,55 @@ class BuiltInFilters
 	{
 		$p = self::parseUrl(\trim($attrValue));
 
-		$url = '';
-
-		if ($p['scheme'] !== '')
+		$error = self::validateUrl($urlConfig, $p);
+		if (!empty($error))
 		{
-			if (!\preg_match($urlConfig['allowedSchemes'], $p['scheme']))
+			if (isset($logger))
 			{
-				if (isset($logger))
-					$logger->err(
-						'URL scheme is not allowed',
-						array('attrValue' => $attrValue, 'scheme' => $p['scheme'])
-					);
-
-				return \false;
+				$p['attrValue'] = $attrValue;
+				$logger->err($error, $p);
 			}
 
-			$url .= $p['scheme'] . ':';
+			return \false;
 		}
 
+		return self::rebuildUrl($p);
+	}
+
+	public static function parseUrl($url)
+	{
+		$regexp = '(^(?:([a-z][-+.\\w]*):)?(?://(?:([^:/?#]*)(?::([^/?#]*)?)?@)?(?:(\\[[a-f\\d:]+\\]|[^:/?#]+)(?::(\\d*))?)?(?![^/?#]))?([^?#]*)(?:\\?([^#]*))?(?:#(.*))?$)Di';
+
+		\preg_match($regexp, $url, $m);
+
+		$parts  = array();
+		$tokens = array('scheme', 'user', 'pass', 'host', 'port', 'path', 'query', 'fragment');
+		foreach ($tokens as $i => $name)
+			$parts[$name] = (isset($m[$i + 1])) ? $m[$i + 1] : '';
+
+		$parts['scheme'] = \strtolower($parts['scheme']);
+
+		$parts['host'] = \rtrim(\preg_replace("/\xE3\x80\x82|\xEF(?:\xBC\x8E|\xBD\xA1)/s", '.', $parts['host']), '.');
+
+		if (\preg_match('#[^[:ascii:]]#', $parts['host']) && \function_exists('idn_to_ascii'))
+			$parts['host'] = \idn_to_ascii($parts['host']);
+
+		return $parts;
+	}
+
+	protected static function rebuildUrl(array $p)
+	{
+		$url = '';
+		if ($p['scheme'] !== '')
+			$url .= $p['scheme'] . ':';
 		if ($p['host'] === '')
 		{
 			if ($p['scheme'] === 'file')
 				$url .= '//';
-			elseif ($p['scheme'] !== '')
-				return \false;
 		}
 		else
 		{
 			$url .= '//';
-
-			$regexp = '/^(?=[a-z])[-a-z0-9]{0,62}[a-z0-9](?:\\.(?=[a-z])[-a-z0-9]{0,62}[a-z0-9])*$/i';
-			if (!\preg_match($regexp, $p['host']))
-				if (!self::filterIpv4($p['host'])
-				 && !self::filterIpv6(\preg_replace('/^\\[(.*)\\]$/', '$1', $p['host'])))
-				{
-					if (isset($logger))
-						$logger->err(
-							'URL host is invalid',
-							array('attrValue' => $attrValue, 'host' => $p['host'])
-						);
-
-					return \false;
-				}
-
-			if ((isset($urlConfig['disallowedHosts']) && \preg_match($urlConfig['disallowedHosts'], $p['host']))
-			 || (isset($urlConfig['restrictedHosts']) && !\preg_match($urlConfig['restrictedHosts'], $p['host'])))
-			{
-				if (isset($logger))
-					$logger->err(
-						'URL host is not allowed',
-						array('attrValue' => $attrValue, 'host' => $p['host'])
-					);
-
-				return \false;
-			}
 
 			if ($p['user'] !== '')
 			{
@@ -1542,33 +1537,6 @@ class BuiltInFilters
 		return $url;
 	}
 
-	public static function parseUrl($url)
-	{
-		$regexp = '(^(?:([a-z][-+.\\w]*):)?(?://(?:([^:/?#]*)(?::([^/?#]*)?)?@)?(?:(\\[[a-f\\d:]+\\]|[^:/?#]+)(?::(\\d*))?)?(?![^/?#]))?([^?#]*)(?:\\?([^#]*))?(?:#(.*))?$)Di';
-
-		\preg_match($regexp, $url, $m);
-
-		$parts = array(
-			'scheme'   => (isset($m[1])) ? $m[1] : '',
-			'user'     => (isset($m[2])) ? $m[2] : '',
-			'pass'     => (isset($m[3])) ? $m[3] : '',
-			'host'     => (isset($m[4])) ? $m[4] : '',
-			'port'     => (isset($m[5])) ? $m[5] : '',
-			'path'     => (isset($m[6])) ? $m[6] : '',
-			'query'    => (isset($m[7])) ? $m[7] : '',
-			'fragment' => (isset($m[8])) ? $m[8] : ''
-		);
-
-		$parts['scheme'] = \strtolower($parts['scheme']);
-
-		$parts['host'] = \rtrim(\preg_replace("/\xE3\x80\x82|\xEF(?:\xBC\x8E|\xBD\xA1)/s", '.', $parts['host']), '.');
-
-		if (\preg_match('#[^[:ascii:]]#', $parts['host']) && \function_exists('idn_to_ascii'))
-			$parts['host'] = \idn_to_ascii($parts['host']);
-
-		return $parts;
-	}
-
 	public static function sanitizeUrl($url)
 	{
 		return \preg_replace_callback(
@@ -1579,6 +1547,30 @@ class BuiltInFilters
 			},
 			$url
 		);
+	}
+
+	protected static function validateUrl(array $urlConfig, array $p)
+	{
+		if ($p['scheme'] !== '' && !\preg_match($urlConfig['allowedSchemes'], $p['scheme']))
+			return 'URL scheme is not allowed';
+
+		if ($p['host'] === '')
+		{
+			if ($p['scheme'] !== 'file' && $p['scheme'] !== '')
+				return 'Missing host';
+		}
+		else
+		{
+			$regexp = '/^(?=[a-z])[-a-z0-9]{0,62}[a-z0-9](?:\\.(?=[a-z])[-a-z0-9]{0,62}[a-z0-9])*$/i';
+			if (!\preg_match($regexp, $p['host']))
+				if (!self::filterIpv4($p['host'])
+				 && !self::filterIpv6(\preg_replace('/^\\[(.*)\\]$/', '$1', $p['host'])))
+					return 'URL host is invalid';
+
+			if ((isset($urlConfig['disallowedHosts']) && \preg_match($urlConfig['disallowedHosts'], $p['host']))
+			 || (isset($urlConfig['restrictedHosts']) && !\preg_match($urlConfig['restrictedHosts'], $p['host'])))
+				return 'URL host is not allowed';
+		}
 	}
 }
 
