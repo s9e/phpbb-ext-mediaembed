@@ -616,73 +616,65 @@ class Parser
 			$this->pluginsConfig[$pluginName]['isDisabled'] = \false;
 	}
 
+	protected function executePluginParser($pluginName)
+	{
+		$pluginConfig = $this->pluginsConfig[$pluginName];
+		if (isset($pluginConfig['quickMatch']) && \strpos($this->text, $pluginConfig['quickMatch']) === \false)
+			return;
+
+		$matches = array();
+		if (isset($pluginConfig['regexp']))
+		{
+			$matches = $this->getMatches($pluginConfig['regexp'], $pluginConfig['regexpLimit']);
+			if (empty($matches))
+				return;
+		}
+
+		\call_user_func($this->getPluginParser($pluginName), $this->text, $matches);
+	}
+
 	protected function executePluginParsers()
 	{
 		foreach ($this->pluginsConfig as $pluginName => $pluginConfig)
-		{
-			if (!empty($pluginConfig['isDisabled']))
-				continue;
-
-			if (isset($pluginConfig['quickMatch'])
-			 && \strpos($this->text, $pluginConfig['quickMatch']) === \false)
-				continue;
-
-			$matches = array();
-
-			if (isset($pluginConfig['regexp']))
-			{
-				$cnt = \preg_match_all(
-					$pluginConfig['regexp'],
-					$this->text,
-					$matches,
-					\PREG_SET_ORDER | \PREG_OFFSET_CAPTURE
-				);
-
-				if (!$cnt)
-					continue;
-
-				if ($cnt > $pluginConfig['regexpLimit'])
-				{
-					if ($pluginConfig['regexpLimitAction'] === 'abort')
-						throw new RuntimeException($pluginName . ' limit exceeded');
-
-					$matches = \array_slice($matches, 0, $pluginConfig['regexpLimit']);
-
-					$msg = 'Regexp limit exceeded. Only the allowed number of matches will be processed';
-					$context = array(
-						'pluginName' => $pluginName,
-						'limit'      => $pluginConfig['regexpLimit']
-					);
-
-					if ($pluginConfig['regexpLimitAction'] === 'warn')
-						$this->logger->warn($msg, $context);
-				}
-			}
-
-			if (!isset($this->pluginParsers[$pluginName]))
-			{
-				$className = (isset($pluginConfig['className']))
-				           ? $pluginConfig['className']
-				           : 's9e\\TextFormatter\\Plugins\\' . $pluginName . '\\Parser';
-
-				$this->pluginParsers[$pluginName] = array(
-					new $className($this, $pluginConfig),
-					'parse'
-				);
-			}
-
-			\call_user_func($this->pluginParsers[$pluginName], $this->text, $matches);
-		}
+			if (empty($pluginConfig['isDisabled']))
+				$this->executePluginParser($pluginName);
 	}
 
-	public function registerParser($pluginName, $parser)
+	protected function getMatches($regexp, $limit)
+	{
+		$cnt = \preg_match_all($regexp, $this->text, $matches, \PREG_SET_ORDER | \PREG_OFFSET_CAPTURE);
+		if ($cnt > $limit)
+			$matches = \array_slice($matches, 0, $limit);
+
+		return $matches;
+	}
+
+	protected function getPluginParser($pluginName)
+	{
+		if (!isset($this->pluginParsers[$pluginName]))
+		{
+			$pluginConfig = $this->pluginsConfig[$pluginName];
+			$className = (isset($pluginConfig['className']))
+			           ? $pluginConfig['className']
+			           : 's9e\\TextFormatter\\Plugins\\' . $pluginName . '\\Parser';
+
+			$this->pluginParsers[$pluginName] = array(new $className($this, $pluginConfig), 'parse');
+		}
+
+		return $this->pluginParsers[$pluginName];
+	}
+
+	public function registerParser($pluginName, $parser, $regexp = \null, $limit = \PHP_INT_MAX)
 	{
 		if (!\is_callable($parser))
 			throw new InvalidArgumentException('Argument 1 passed to ' . __METHOD__ . ' must be a valid callback');
-
 		if (!isset($this->pluginsConfig[$pluginName]))
 			$this->pluginsConfig[$pluginName] = array();
-
+		if (isset($regexp))
+		{
+			$this->pluginsConfig[$pluginName]['regexp']      = $regexp;
+			$this->pluginsConfig[$pluginName]['regexpLimit'] = $limit;
+		}
 		$this->pluginParsers[$pluginName] = $parser;
 	}
 
@@ -815,6 +807,11 @@ class Parser
 			--$tagPos;
 
 		return $tagPos;
+	}
+
+	protected function isFollowedByClosingTag(Tag $tag)
+	{
+		return (empty($this->tagStack)) ? \false : \end($this->tagStack)->canClose($tag);
 	}
 
 	protected function processTags()
@@ -981,7 +978,8 @@ class Parser
 		}
 
 		if ($tag->getFlags() & self::RULE_AUTO_CLOSE
-		 && !$tag->getEndTag())
+		 && !$tag->getEndTag()
+		 && !$this->isFollowedByClosingTag($tag))
 		{
 			$newTag = new Tag(Tag::SELF_CLOSING_TAG, $tagName, $tag->getPos(), $tag->getLen());
 			$newTag->setAttributes($tag->getAttributes());
@@ -2068,7 +2066,12 @@ class Parser extends ParserBase
 		{
 			$prefix  = 'compress.zlib://';
 			$suffix  = '.gz';
-			$context = \stream_context_create(array('http' => array('header' => 'Accept-Encoding: gzip')));
+			$context = \stream_context_create(
+				array(
+					'http' => array('header' => 'Accept-Encoding: gzip'),
+					'ssl'  => array('verify_peer' => \false)
+				)
+			);
 		}
 
 		if (isset($cacheDir) && \file_exists($cacheDir))
