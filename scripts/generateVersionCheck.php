@@ -2,7 +2,7 @@
 $composer = json_decode(file_get_contents(__DIR__ . '/../composer.json'));
 $version  = $composer->version;
 file_put_contents(
-	__DIR__ . '/../version.json',
+	__DIR__ . '/../versions.json',
 	json_encode([
 		'stable' => [
 			$version => [

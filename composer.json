@@ -17,9 +17,9 @@
 			"phpbb/phpbb": "3.1.*"
 		},
 		"version-check": {
-			"host":      "raw.githubusercontent.com",
+			"host":      "cdn.rawgit.com",
 			"directory": "/s9e/phpbb-ext-mediaembed/master",
-			"filename":  "version.json"
+			"filename":  "versions.json"
 		}
 	}
 }
