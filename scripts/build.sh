@@ -12,6 +12,7 @@ rm -rf "$tmpdir/s9e"
 mkdir -p "$tmpdir/s9e/mediaembed/config"
 php scripts/generateFiles.php
 sed -i "s/\"version\": *\"[^\"]*/\"version\": \"$version/" composer.json
+php scripts/generateVersionCheck.php
 
 files="
 	LICENSE
