@@ -8,7 +8,7 @@ file_put_contents(
 			$version => [
 				'current'      => $version,
 				'announcement' => 'https://www.phpbb.com/community/viewtopic.php?f=456&t=2272431',
-				'download'     => 'https://github.com/s9e/phpbb-ext-mediaembed/releases',
+				'download'     => 'https://github.com/s9e/phpbb-ext-mediaembed/releases/download/' . $version . '/s9e-mediaembed-' . $version . '.zip',
 				'eol'          => null,
 				'security'     => false
 			]
