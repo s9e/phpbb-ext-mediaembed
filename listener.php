@@ -15,12 +15,22 @@ class listener implements EventSubscriberInterface
 	public static function getSubscribedEvents()
 	{
 		return array(
-			'core.modify_format_display_text_after' => 'onPreview',
-			'core.modify_submit_post_data'          => 'onSubmit',
-			'core.modify_text_for_display_after'    => 'onDisplay',
-			'core.modify_text_for_edit_before'      => 'onEdit',
-			'core.modify_text_for_storage_after'    => 'onStorage'
+			'core.text_formatter_s9e_configure_before' => 'onConfigure',
+			'core.modify_format_display_text_after'    => 'onPreview',
+			'core.modify_submit_post_data'             => 'onSubmit',
+			'core.modify_text_for_display_after'       => 'onDisplay',
+			'core.modify_text_for_edit_before'         => 'onEdit',
+			'core.modify_text_for_storage_after'       => 'onStorage'
 		);
+	}
+
+	public function onConfigure($event)
+	{
+		$configurator = $event['configurator'];
+		foreach ($configurator->MediaEmbed->defaultSites->getIds() as $siteId)
+		{
+			$configurator->MediaEmbed->add($siteId);
+		}
 	}
 
 	public function onDisplay($event)
