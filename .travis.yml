@@ -1,0 +1,16 @@
+language: php
+matrix:
+  fast_finish: true
+php:
+  - 5.6
+  - 5.3
+env:
+  global:
+    - DB=mysqli
+  matrix:
+    - PHPBB_BRANCH="3.1.x"
+install:
+  - scripts/travis/setup.sh
+script:
+  - cd phpbb
+  - phpBB/vendor/bin/phpunit -c phpBB/ext/s9e/mediaembed/travis/phpunit-$DB-travis.xml --bootstrap ./tests/bootstrap.php

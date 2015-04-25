@@ -7,8 +7,7 @@
 	"keywords": ["phpbb","embed","forum","media"],
 	"license": "MIT",
 	"require": {
-		"php": ">=5.3.3",
-		"s9e/text-formatter": "dev-release/php5.3"
+		"php": ">=5.3.3"
 	},
 	"authors": [{ "name": "JoshyPHP" }],
 	"extra": {
