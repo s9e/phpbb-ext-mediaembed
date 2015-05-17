@@ -20,7 +20,8 @@ class listener implements EventSubscriberInterface
 			'core.modify_submit_post_data'             => 'onSubmit',
 			'core.modify_text_for_display_after'       => 'onDisplay',
 			'core.modify_text_for_edit_before'         => 'onEdit',
-			'core.modify_text_for_storage_after'       => 'onStorage'
+			'core.modify_text_for_storage_after'       => 'onStorage',
+			'core.submit_pm_before'                    => 'onPmStorage'
 		);
 	}
 
@@ -41,6 +42,13 @@ class listener implements EventSubscriberInterface
 	public function onEdit($event)
 	{
 		$event['text'] = $this->unparse($event['text']);
+	}
+
+	public function onPmStorage($event)
+	{
+		$data = $event['data'];
+		$data['message'] = $this->parse($data['message']);
+		$event['data'] = $data;
 	}
 
 	public function onPreview($event)
