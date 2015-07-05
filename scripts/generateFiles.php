@@ -17,7 +17,8 @@ function getSource(array $filenames)
 $bundles = [
 	'bundle.php' => [
 		'Bundle.php',
-		'Bundles/MediaPack.php'
+		'Bundles/MediaPack.php',
+		'Utils.php'
 	],
 	'parsing.php' => [
 		'Parser.php',
