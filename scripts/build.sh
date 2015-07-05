@@ -20,7 +20,6 @@ files="
 	bundle.php
 	composer.json
 	config/services.yml
-	ext.php
 	listener.php
 	parsing.php
 	rendering.php
