@@ -151,22 +151,32 @@ class Parser
 	public static function executeAttributePreprocessors(Tag $tag, array $tagConfig)
 	{
 		if (!empty($tagConfig['attributePreprocessors']))
-			foreach ($tagConfig['attributePreprocessors'] as $_a0ddcb05)
+			foreach ($tagConfig['attributePreprocessors'] as $_5f417eec)
 			{
-				list($attrName, $regexp) = $_a0ddcb05;
+				list($attrName, $regexp, $map) = $_5f417eec;
 				if (!$tag->hasAttribute($attrName))
 					continue;
-				$attrValue = $tag->getAttribute($attrName);
-				if (\preg_match($regexp, $attrValue, $m))
-					foreach ($m as $targetName => $targetValue)
-					{
-						if (\is_numeric($targetName) || $targetValue === '')
-							continue;
-						if ($targetName === $attrName || !$tag->hasAttribute($targetName))
-							$tag->setAttribute($targetName, $targetValue);
-					}
+				self::executeAttributePreprocessor($tag, $attrName, $regexp, $map);
 			}
 		return \true;
+	}
+	protected static function executeAttributePreprocessor(Tag $tag, $attrName, $regexp, $map)
+	{
+		$attrValue = $tag->getAttribute($attrName);
+		$captures  = self::getNamedCaptures($attrValue, $regexp, $map);
+		foreach ($captures as $k => $v)
+			if ($k === $attrName || !$tag->hasAttribute($k))
+				$tag->setAttribute($k, $v);
+	}
+	protected static function getNamedCaptures($attrValue, $regexp, $map)
+	{
+		if (!\preg_match($regexp, $attrValue, $m))
+			return array();
+		$values = array();
+		foreach ($map as $i => $k)
+			if (isset($m[$i]) && $m[$i] !== '')
+				$values[$k] = $m[$i];
+		return $values;
 	}
 	protected static function executeFilter(array $filter, array $vars)
 	{
@@ -465,6 +475,13 @@ class Parser
 		$this->output .= '</p>';
 		$this->context['inParagraph'] = \false;
 	}
+	protected function outputVerbatim(Tag $tag)
+	{
+		$flags = $this->context['flags'];
+		$this->context['flags'] = $tag->getFlags();
+		$this->outputText($this->currentTag->getPos() + $this->currentTag->getLen(), 0, \false);
+		$this->context['flags'] = $flags;
+	}
 	protected function outputWhitespace($maxPos)
 	{
 		if ($maxPos > $this->pos)
@@ -714,6 +731,8 @@ class Parser
 		}
 		elseif ($this->currentTag->isParagraphBreak())
 			$this->outputText($this->currentTag->getPos(), 0, \true);
+		elseif ($this->currentTag->isVerbatim())
+			$this->outputVerbatim($this->currentTag);
 		elseif ($this->currentTag->isStartTag())
 			$this->processStartTag($this->currentTag);
 		else
@@ -968,6 +987,10 @@ class Parser
 		$tag = $this->addStartTag($name, $startPos, $startLen);
 		$tag->pairWith($this->addEndTag($name, $endPos, $endLen));
 		return $tag;
+	}
+	public function addVerbatim($pos, $len)
+	{
+		return $this->addTag(Tag::SELF_CLOSING_TAG, 'v', $pos, $len);
 	}
 	protected function sortTags()
 	{
@@ -1473,11 +1496,15 @@ class Tag
 	}
 	public function isSystemTag()
 	{
-		return ($this->name === 'br' || $this->name === 'i' || $this->name === 'pb');
+		return (\strpos('br i pb v', $this->name) !== \false);
 	}
 	public function isStartTag()
 	{
 		return (bool) ($this->type & self::START_TAG);
+	}
+	public function isVerbatim()
+	{
+		return ($this->name === 'v');
 	}
 	public function getAttribute($attrName)
 	{
@@ -1652,7 +1679,7 @@ class Parser extends ParserBase
 			if (\file_exists($cacheFile))
 				return \file_get_contents($prefix . $cacheFile);
 		}
-		$content = \file_get_contents($prefix . $url, \false, $context);
+		$content = @\file_get_contents($prefix . $url, \false, $context);
 		if (isset($cacheFile) && $content !== \false)
 			\file_put_contents($prefix . $cacheFile, $content);
 		return $content;
