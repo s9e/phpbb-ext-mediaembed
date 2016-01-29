@@ -85,7 +85,7 @@ class listener implements EventSubscriberInterface
 			'(<!-- m -->.*?href="([^"]+).*?<!-- m -->)',
 			function ($m)
 			{
-				$xml = MediaPack::parse($m[1]);
+				$xml = MediaPack::parse(htmlspecialchars_decode($m[1]));
 
 				return ($xml[1] === 'r')
 					? '<!-- s9e:mediaembed:' . base64_encode($xml) . ' -->' . $m[0]
