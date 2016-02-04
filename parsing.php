@@ -1714,3 +1714,135 @@ abstract class ParserBase
 	}
 	abstract public function parse($text, array $matches);
 }
+
+/*
+* @package   s9e\TextFormatter
+* @copyright Copyright (c) 2010-2016 The s9e Authors
+* @license   http://www.opensource.org/licenses/mit-license.php The MIT License
+*/
+namespace s9e\TextFormatter\Utils;
+use s9e\TextFormatter\Utils\Http\Clients\Curl;
+use s9e\TextFormatter\Utils\Http\Clients\Native;
+abstract class Http
+{
+	public static function getClient()
+	{
+		return (\extension_loaded('curl') && !\ini_get('safe_mode')) ? new Curl : new Native;
+	}
+}
+
+/*
+* @package   s9e\TextFormatter
+* @copyright Copyright (c) 2010-2016 The s9e Authors
+* @license   http://www.opensource.org/licenses/mit-license.php The MIT License
+*/
+namespace s9e\TextFormatter\Utils\Http;
+abstract class Client
+{
+	public $sslVerifyPeer = \false;
+	public $timeout = 10;
+	abstract public function get($url, $headers = array());
+	abstract public function post($url, $headers = array(), $body = '');
+}
+
+/*
+* @package   s9e\TextFormatter
+* @copyright Copyright (c) 2010-2016 The s9e Authors
+* @license   http://www.opensource.org/licenses/mit-license.php The MIT License
+*/
+namespace s9e\TextFormatter\Utils\Http\Clients;
+use s9e\TextFormatter\Utils\Http\Client;
+class Curl extends Client
+{
+	protected static $handle;
+	public function get($url, $headers = array())
+	{
+		$handle = $this->getHandle();
+		\curl_setopt($handle, \CURLOPT_HTTPGET,    \true);
+		\curl_setopt($handle, \CURLOPT_HTTPHEADER, $headers);
+		\curl_setopt($handle, \CURLOPT_URL,        $url);
+		return \curl_exec($handle);
+	}
+	public function post($url, $headers = array(), $body = '')
+	{
+		$headers[] = 'Content-Length: ' . \strlen($body);
+		$handle = $this->getHandle();
+		\curl_setopt($handle, \CURLOPT_HTTPHEADER, $headers);
+		\curl_setopt($handle, \CURLOPT_POST,       \true);
+		\curl_setopt($handle, \CURLOPT_POSTFIELDS, $body);
+		\curl_setopt($handle, \CURLOPT_URL,        $url);
+		return \curl_exec($handle);
+	}
+	protected function getHandle()
+	{
+		if (!isset(self::$handle))
+			self::$handle = $this->getNewHandle();
+		\curl_setopt(self::$handle, \CURLOPT_SSL_VERIFYPEER, $this->sslVerifyPeer);
+		\curl_setopt(self::$handle, \CURLOPT_TIMEOUT,        $this->timeout);
+		return self::$handle;
+	}
+	protected function getNewHandle()
+	{
+		$handle = \curl_init();
+		\curl_setopt($handle, \CURLOPT_ENCODING,       '');
+		\curl_setopt($handle, \CURLOPT_FAILONERROR,    \true);
+		\curl_setopt($handle, \CURLOPT_FOLLOWLOCATION, \true);
+		\curl_setopt($handle, \CURLOPT_RETURNTRANSFER, \true);
+		return $handle;
+	}
+}
+
+/*
+* @package   s9e\TextFormatter
+* @copyright Copyright (c) 2010-2016 The s9e Authors
+* @license   http://www.opensource.org/licenses/mit-license.php The MIT License
+*/
+namespace s9e\TextFormatter\Utils\Http\Clients;
+use s9e\TextFormatter\Utils\Http\Client;
+class Native extends Client
+{
+	public $gzipEnabled;
+	public function __construct()
+	{
+		$this->gzipEnabled = \extension_loaded('zlib');
+	}
+	public function get($url, $headers = array())
+	{
+		return $this->request('GET', $url, $headers);
+	}
+	public function post($url, $headers = array(), $body = '')
+	{
+		return $this->request('POST', $url, $headers, $body);
+	}
+	protected function createContext($method, array $headers, $body)
+	{
+		$contextOptions = array(
+			'ssl'  => array('verify_peer' => $this->sslVerifyPeer),
+			'http' => array(
+				'method'  => $method,
+				'timeout' => $this->timeout,
+				'header'  => $this->generateHeaders($headers, $body),
+				'content' => $body
+			)
+		);
+		return \stream_context_create($contextOptions);
+	}
+	protected function decompress($content)
+	{
+		if ($this->gzipEnabled && \substr($content, 0, 2) === "\x1f\x8b")
+			return \gzdecode($content);
+		return $content;
+	}
+	protected function generateHeaders(array $headers, $body)
+	{
+		if ($this->gzipEnabled)
+			$headers[] = 'Accept-Encoding: gzip';
+		$headers[] = 'Content-Length: ' . \strlen($body);
+		return $headers;
+	}
+	protected function request($method, $url, $headers, $body = '')
+	{
+		$response = @\file_get_contents($url, \false, $this->createContext($method, $headers, $body));
+		return (\is_string($response)) ? $this->decompress($response) : $response;
+	}
+}

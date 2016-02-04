@@ -26,7 +26,11 @@ $bundles = [
 		'Parser/Logger.php',
 		'Parser/Tag.php',
 		'Plugins/MediaEmbed/Parser.php',
-		'Plugins/ParserBase.php'
+		'Plugins/ParserBase.php',
+		'Utils/Http.php',
+		'Utils/Http/Client.php',
+		'Utils/Http/Clients/Curl.php',
+		'Utils/Http/Clients/Native.php'
 	],
 	'rendering.php' => [
 		'Renderer.php',
