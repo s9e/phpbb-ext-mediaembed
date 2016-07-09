@@ -3,7 +3,7 @@
 	"type": "phpbb-extension",
 	"description": "Embed third-party content in your phpBB forum",
 	"homepage": "https://github.com/s9e/phpbb-ext-mediaembed/",
-	"version": "20160605",
+	"version": "20160709",
 	"keywords": ["phpbb","embed","forum","media"],
 	"license": "MIT",
 	"require": {
@@ -13,7 +13,7 @@
 	"extra": {
 		"display-name": "s9e/mediaembed",
 		"soft-require": {
-			"phpbb/phpbb": "3.1.*"
+			"phpbb/phpbb": ">=3.1.4"
 		},
 		"version-check": {
 			"host":      "cdn.rawgit.com",
