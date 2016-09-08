@@ -91,7 +91,7 @@ class Parser
 		$this->output      = '';
 		$this->pos         = 0;
 		$this->tagStack    = array();
-		$this->tagStackIsSorted = \true;
+		$this->tagStackIsSorted = \false;
 		$this->text        = $text;
 		$this->textLen     = \strlen($text);
 		$this->wsPos       = 0;
@@ -614,7 +614,7 @@ class Parser
 			$priority = -1000;
 			$tagPos   = $this->pos + \strspn($this->text, " \n\r\t", $this->pos);
 			foreach ($tagConfig['rules']['createChild'] as $tagName)
-				$this->addStartTag($tagName, $tagPos, 0)->setSortPriority(++$priority);
+				$this->addStartTag($tagName, $tagPos, 0, ++$priority);
 		}
 	}
 	protected function fosterParent(Tag $tag)
@@ -631,13 +631,12 @@ class Parser
 				{
 					if ($parentName !== $tagName && $this->currentFixingCost < $this->maxFixingCost)
 					{
-						$child = $this->addCopyTag($parent, $tag->getPos() + $tag->getLen(), 0);
+						$child = $this->addCopyTag($parent, $tag->getPos() + $tag->getLen(), 0, $tag->getSortPriority() + 1);
 						$tag->cascadeInvalidationTo($child);
-						$child->setSortPriority($tag->getSortPriority() + 1);
 					}
 					$this->tagStack[] = $tag;
-					$this->addMagicEndTag($parent, $tag->getPos())->setSortPriority($tag->getSortPriority() - 1);
-					$this->currentFixingCost += \count($this->tagStack);
+					$this->addMagicEndTag($parent, $tag->getPos(), $tag->getSortPriority() - 1);
+					$this->currentFixingCost += 4;
 					return \true;
 				}
 			}
@@ -661,12 +660,12 @@ class Parser
 		}
 		return \false;
 	}
-	protected function addMagicEndTag(Tag $startTag, $tagPos)
+	protected function addMagicEndTag(Tag $startTag, $tagPos, $prio = 0)
 	{
 		$tagName = $startTag->getName();
 		if ($startTag->getFlags() & self::RULE_IGNORE_WHITESPACE)
 			$tagPos = $this->getMagicPos($tagPos);
-		$endTag = $this->addEndTag($tagName, $tagPos, 0);
+		$endTag = $this->addEndTag($tagName, $tagPos, 0, $prio);
 		$endTag->pairWith($startTag);
 		return $endTag;
 	}
@@ -936,40 +935,41 @@ class Parser
 		$n = $this->tagsConfig[$tagName]['bitNumber'];
 		return (bool) ($this->context['allowed'][$n >> 3] & (1 << ($n & 7)));
 	}
-	public function addStartTag($name, $pos, $len)
+	public function addStartTag($name, $pos, $len, $prio = 0)
 	{
-		return $this->addTag(Tag::START_TAG, $name, $pos, $len);
+		return $this->addTag(Tag::START_TAG, $name, $pos, $len, $prio);
 	}
-	public function addEndTag($name, $pos, $len)
+	public function addEndTag($name, $pos, $len, $prio = 0)
 	{
-		return $this->addTag(Tag::END_TAG, $name, $pos, $len);
+		return $this->addTag(Tag::END_TAG, $name, $pos, $len, $prio);
 	}
-	public function addSelfClosingTag($name, $pos, $len)
+	public function addSelfClosingTag($name, $pos, $len, $prio = 0)
 	{
-		return $this->addTag(Tag::SELF_CLOSING_TAG, $name, $pos, $len);
+		return $this->addTag(Tag::SELF_CLOSING_TAG, $name, $pos, $len, $prio);
 	}
-	public function addBrTag($pos)
+	public function addBrTag($pos, $prio = 0)
 	{
-		return $this->addTag(Tag::SELF_CLOSING_TAG, 'br', $pos, 0);
+		return $this->addTag(Tag::SELF_CLOSING_TAG, 'br', $pos, 0, $prio);
 	}
-	public function addIgnoreTag($pos, $len)
+	public function addIgnoreTag($pos, $len, $prio = 0)
 	{
-		return $this->addTag(Tag::SELF_CLOSING_TAG, 'i', $pos, \min($len, $this->textLen - $pos));
+		return $this->addTag(Tag::SELF_CLOSING_TAG, 'i', $pos, \min($len, $this->textLen - $pos), $prio);
 	}
-	public function addParagraphBreak($pos)
+	public function addParagraphBreak($pos, $prio = 0)
 	{
-		return $this->addTag(Tag::SELF_CLOSING_TAG, 'pb', $pos, 0);
+		return $this->addTag(Tag::SELF_CLOSING_TAG, 'pb', $pos, 0, $prio);
 	}
-	public function addCopyTag(Tag $tag, $pos, $len)
+	public function addCopyTag(Tag $tag, $pos, $len, $prio = \null)
 	{
-		$copy = $this->addTag($tag->getType(), $tag->getName(), $pos, $len);
+		if (!isset($prio))
+			$prio = $tag->getSortPriority();
+		$copy = $this->addTag($tag->getType(), $tag->getName(), $pos, $len, $prio);
 		$copy->setAttributes($tag->getAttributes());
-		$copy->setSortPriority($tag->getSortPriority());
 		return $copy;
 	}
-	protected function addTag($type, $name, $pos, $len)
+	protected function addTag($type, $name, $pos, $len, $prio)
 	{
-		$tag = new Tag($type, $name, $pos, $len);
+		$tag = new Tag($type, $name, $pos, $len, $prio);
 		$this->createdTags[] = $tag;
 		if (isset($this->tagsConfig[$name]))
 			$tag->setFlags($this->tagsConfig[$name]['rules']['flags']);
@@ -989,24 +989,34 @@ class Parser
 		elseif ($len < 0 || $pos < 0 || $pos + $len > $this->textLen)
 			$tag->invalidate();
 		else
-		{
-			if ($this->tagStackIsSorted
-			 && !empty($this->tagStack)
-			 && $tag->getPos() >= \end($this->tagStack)->getPos())
-				$this->tagStackIsSorted = \false;
+			$this->insertTag($tag);
+		return $tag;
+	}
+	protected function insertTag(Tag $tag)
+	{
+		if (!$this->tagStackIsSorted)
 			$this->tagStack[] = $tag;
+		else
+		{
+			$i = \count($this->tagStack);
+			while ($i > 0 && self::compareTags($this->tagStack[$i - 1], $tag) > 0)
+			{
+				$this->tagStack[$i] = $this->tagStack[$i - 1];
+				--$i;
+			}
+			$this->tagStack[$i] = $tag;
 		}
-		return $tag;
 	}
-	public function addTagPair($name, $startPos, $startLen, $endPos, $endLen)
+	public function addTagPair($name, $startPos, $startLen, $endPos, $endLen, $prio = 0)
 	{
-		$tag = $this->addStartTag($name, $startPos, $startLen);
-		$tag->pairWith($this->addEndTag($name, $endPos, $endLen));
-		return $tag;
+		$endTag   = $this->addEndTag($name, $endPos, $endLen);
+		$startTag = $this->addStartTag($name, $startPos, $startLen, $prio);
+		$startTag->pairWith($endTag);
+		return $startTag;
 	}
-	public function addVerbatim($pos, $len)
+	public function addVerbatim($pos, $len, $prio = 0)
 	{
-		return $this->addTag(Tag::SELF_CLOSING_TAG, 'v', $pos, $len);
+		return $this->addTag(Tag::SELF_CLOSING_TAG, 'v', $pos, $len, $prio);
 	}
 	protected function sortTags()
 	{
@@ -1199,9 +1209,9 @@ class BuiltInFilters
 		}
 		return self::rebuildUrl($p);
 	}
-	public static function parseUrl($url)
+	protected static function parseUrl($url)
 	{
-		$regexp = '(^(?:([a-z][-+.\\w]*):)?(?://(?:([^:/?#]*)(?::([^/?#]*)?)?@)?(?:(\\[[a-f\\d:]+\\]|[^:/?#]+)(?::(\\d*))?)?(?![^/?#]))?([^?#]*)(?:\\?([^#]*))?(?:#(.*))?$)Di';
+		$regexp = '(^(?:([a-z][-+.\\w]*):)?(?://(?:([^:/?#]*)(?::([^/?#]*)?)?@)?(?:(\\[[a-f\\d:]+\\]|[^:/?#]+)(?::(\\d*))?)?(?![^/?#]))?([^?#]*)(\\?[^#]*)?(#.*)?$)Di';
 		\preg_match($regexp, $url, $m);
 		$parts  = array();
 		$tokens = array('scheme', 'user', 'pass', 'host', 'port', 'path', 'query', 'fragment');
@@ -1237,11 +1247,7 @@ class BuiltInFilters
 			if ($p['port'] !== '')
 				$url .= ':' . $p['port'];
 		}
-		$path = $p['path'];
-		if ($p['query'] !== '')
-			$path .= '?' . $p['query'];
-		if ($p['fragment'] !== '')
-			$path .= '#' . $p['fragment'];
+		$path = $p['path'] . $p['query'] . $p['fragment'];
 		$path = \preg_replace_callback(
 			'/%.?[a-f]/',
 			function ($m)
@@ -1373,15 +1379,16 @@ class Tag
 	protected $len;
 	protected $name;
 	protected $pos;
-	protected $sortPriority = 0;
+	protected $sortPriority;
 	protected $startTag = \null;
 	protected $type;
-	public function __construct($type, $name, $pos, $len)
+	public function __construct($type, $name, $pos, $len, $priority = 0)
 	{
 		$this->type = (int) $type;
 		$this->name = $name;
 		$this->pos  = (int) $pos;
 		$this->len  = (int) $len;
+		$this->sortPriority = (int) $priority;
 	}
 	public function addFlags($flags)
 	{
@@ -1437,6 +1444,7 @@ class Tag
 	public function setSortPriority($sortPriority)
 	{
 		$this->sortPriority = $sortPriority;
+		\trigger_error('setSortPriority() is deprecated. Set the priority when calling adding the tag instead. See http://s9etextformatter.readthedocs.io/Internals/API_changes/#070', \E_USER_DEPRECATED);
 	}
 	public function getAttributes()
 	{
@@ -1564,9 +1572,8 @@ class Parser extends ParserBase
 			$url = $m[0][0];
 			$pos = $m[0][1];
 			$len = \strlen($url);
-			$tag = $this->parser->addSelfClosingTag('MEDIA', $pos, $len);
+			$tag = $this->parser->addSelfClosingTag('MEDIA', $pos, $len, -10);
 			$tag->setAttribute('url', $url);
-			$tag->setSortPriority(-10);
 		}
 	}
 	public static function filterTag(Tag $tag, TagStack $tagStack, array $sites)
@@ -1600,9 +1607,8 @@ class Parser extends ParserBase
 		$endTag = $tag->getEndTag() ?: $tag;
 		$lpos = $tag->getPos();
 		$rpos = $endTag->getPos() + $endTag->getLen();
-		$newTag = $tagStack->addSelfClosingTag(\strtoupper($siteId), $lpos, $rpos - $lpos);
+		$newTag = $tagStack->addSelfClosingTag(\strtoupper($siteId), $lpos, $rpos - $lpos, $tag->getSortPriority());
 		$newTag->setAttributes($tag->getAttributes());
-		$newTag->setSortPriority($tag->getSortPriority());
 	}
 	protected static function addTagFromMediaId(Tag $tag, TagStack $tagStack, array $sites)
 	{
