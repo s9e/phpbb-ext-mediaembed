@@ -8,6 +8,7 @@
 namespace s9e\mediaembed;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use s9e\TextFormatter\Configurator\Bundles\MediaPack as MediaPackConfigurator;
 use s9e\TextFormatter\Bundles\MediaPack;
 
 class listener implements EventSubscriberInterface
@@ -27,11 +28,8 @@ class listener implements EventSubscriberInterface
 
 	public function onConfigure($event)
 	{
-		$configurator = $event['configurator'];
-		foreach ($configurator->MediaEmbed->defaultSites->getIds() as $siteId)
-		{
-			$configurator->MediaEmbed->add($siteId);
-		}
+		$bundleConfigurator = new MediaPackConfigurator;
+		$bundleConfigurator->configure($event['configurator']);
 	}
 
 	public function onDisplay($event)
