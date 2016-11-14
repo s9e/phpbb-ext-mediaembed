@@ -32,7 +32,6 @@ class Parser
 	protected $cntOpen;
 	protected $cntTotal;
 	protected $context;
-	protected $createdTags;
 	protected $currentFixingCost;
 	protected $currentTag;
 	protected $isRich;
@@ -69,32 +68,25 @@ class Parser
 	{
 		$this->logger = new Logger;
 	}
-	protected function gc()
-	{
-		foreach ($this->createdTags as $tag)
-			$tag->gc();
-		$this->createdTags = array();
-	}
 	protected function reset($text)
 	{
 		$text = \preg_replace('/\\r\\n?/', "\n", $text);
 		$text = \preg_replace('/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]+/S', '', $text);
 		$this->logger->clear();
-		$this->cntOpen     = array();
-		$this->cntTotal    = array();
-		$this->createdTags = array();
+		$this->cntOpen           = array();
+		$this->cntTotal          = array();
 		$this->currentFixingCost = 0;
-		$this->currentTag  = \null;
-		$this->isRich      = \false;
-		$this->namespaces  = array();
-		$this->openTags    = array();
-		$this->output      = '';
-		$this->pos         = 0;
-		$this->tagStack    = array();
-		$this->tagStackIsSorted = \false;
-		$this->text        = $text;
-		$this->textLen     = \strlen($text);
-		$this->wsPos       = 0;
+		$this->currentTag        = \null;
+		$this->isRich            = \false;
+		$this->namespaces        = array();
+		$this->openTags          = array();
+		$this->output            = '';
+		$this->pos               = 0;
+		$this->tagStack          = array();
+		$this->tagStackIsSorted  = \false;
+		$this->text              = $text;
+		$this->textLen           = \strlen($text);
+		$this->wsPos             = 0;
 		$this->context = $this->rootContext;
 		$this->context['inParagraph'] = \false;
 		++$this->uid;
@@ -132,7 +124,6 @@ class Parser
 		$uid = $this->uid;
 		$this->executePluginParsers();
 		$this->processTags();
-		$this->gc();
 		$this->finalizeOutput();
 		if ($this->uid !== $uid)
 			throw new RuntimeException('The parser has been reset during execution');
@@ -970,7 +961,6 @@ class Parser
 	protected function addTag($type, $name, $pos, $len, $prio)
 	{
 		$tag = new Tag($type, $name, $pos, $len, $prio);
-		$this->createdTags[] = $tag;
 		if (isset($this->tagsConfig[$name]))
 			$tag->setFlags($this->tagsConfig[$name]['rules']['flags']);
 		if (!isset($this->tagsConfig[$name]) && !$tag->isSystemTag())
@@ -1400,12 +1390,6 @@ class Tag
 		if ($this->invalid)
 			$tag->invalidate();
 	}
-	public function gc()
-	{
-		$this->cascade  = array();
-		$this->endTag   = \null;
-		$this->startTag = \null;
-	}
 	public function invalidate()
 	{
 		if ($this->invalid)
@@ -1558,10 +1542,10 @@ class Tag
 * @license   http://www.opensource.org/licenses/mit-license.php The MIT License
 */
 namespace s9e\TextFormatter\Plugins\MediaEmbed;
-use s9e\TextFormatter\Utils\Http;
 use s9e\TextFormatter\Parser as TagStack;
 use s9e\TextFormatter\Parser\Tag;
 use s9e\TextFormatter\Plugins\ParserBase;
+use s9e\TextFormatter\Utils\Http;
 class Parser extends ParserBase
 {
 	protected static $client;
@@ -1572,13 +1556,13 @@ class Parser extends ParserBase
 			$url = $m[0][0];
 			$pos = $m[0][1];
 			$len = \strlen($url);
-			$tag = $this->parser->addSelfClosingTag('MEDIA', $pos, $len, -10);
+			$tag = $this->parser->addSelfClosingTag($this->config['tagName'], $pos, $len, -10);
 			$tag->setAttribute('url', $url);
 		}
 	}
 	public static function filterTag(Tag $tag, TagStack $tagStack, array $sites)
 	{
-		if ($tag->hasAttribute('media'))
+		if ($tag->hasAttribute('site'))
 			self::addTagFromMediaId($tag, $tagStack, $sites);
 		elseif ($tag->hasAttribute('url'))
 			self::addTagFromMediaUrl($tag, $tagStack, $sites);
@@ -1593,13 +1577,13 @@ class Parser extends ParserBase
 	}
 	public static function scrape(Tag $tag, array $scrapeConfig, $cacheDir = \null)
 	{
-		if (!$tag->hasAttribute('url'))
-			return \true;
-		$url = $tag->getAttribute('url');
-		if (!\preg_match('#^https?://[^<>"\'\\s]+$#D', $url))
-			return \true;
-		foreach ($scrapeConfig as $scrape)
-			self::scrapeEntry($url, $tag, $scrape, $cacheDir);
+		if ($tag->hasAttribute('url'))
+		{
+			$url = $tag->getAttribute('url');
+			if (\preg_match('#^https?://[^<>"\'\\s]+$#D', $url))
+				foreach ($scrapeConfig as $scrape)
+					self::scrapeEntry($url, $tag, $scrape, $cacheDir);
+		}
 		return \true;
 	}
 	protected static function addSiteTag(Tag $tag, TagStack $tagStack, $siteId)
@@ -1611,7 +1595,7 @@ class Parser extends ParserBase
 	}
 	protected static function addTagFromMediaId(Tag $tag, TagStack $tagStack, array $sites)
 	{
-		$siteId = \strtolower($tag->getAttribute('media'));
+		$siteId = \strtolower($tag->getAttribute('site'));
 		if (\in_array($siteId, $sites, \true))
 			self::addSiteTag($tag, $tagStack, $siteId);
 	}
