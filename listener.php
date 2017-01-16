@@ -16,7 +16,7 @@ class listener implements EventSubscriberInterface
 	public static function getSubscribedEvents()
 	{
 		return array(
-			'core.text_formatter_s9e_configure_before' => 'onConfigure',
+			'core.text_formatter_s9e_configure_after'  => 'onConfigure',
 			'core.modify_format_display_text_after'    => 'onPreview',
 			'core.modify_submit_post_data'             => 'onSubmit',
 			'core.modify_text_for_display_after'       => 'onDisplay',
@@ -28,8 +28,40 @@ class listener implements EventSubscriberInterface
 
 	public function onConfigure($event)
 	{
+		$configurator = $event['configurator'];
+		$attrMap      = array();
+		foreach ($configurator->MediaEmbed->defaultSites as $siteId => $definition)
+		{
+			if (isset($configurator->BBCodes[$siteId]))
+			{
+				$configurator->BBCodes[$siteId]->defaultAttribute  = 'url';
+				$configurator->BBCodes[$siteId]->contentAttributes = array('url');
+			}
+			if (isset($configurator->tags[$siteId]))
+			{
+				foreach ($configurator->tags[$siteId]->attributes as $attrName => $attribute)
+				{
+					if ($attrName === 'id')
+					{
+						break;
+					}
+				}
+				$attrMap[$siteId] = $attrName;
+			}
+		}
+
 		$bundleConfigurator = new MediaPackConfigurator;
-		$bundleConfigurator->configure($event['configurator']);
+		$bundleConfigurator->configure($configurator);
+
+		foreach ($attrMap as $siteId => $attrName)
+		{
+			$tag = $configurator->tags[$siteId];
+			if (!isset($tag->attributes['id']))
+			{
+				continue;
+			}
+			$tag->template = '<xsl:choose><xsl:when test="@id">' . $tag->template . '</xsl:when><xsl:otherwise>' . str_replace('@id', '@' . $attrName, $tag->template) . '</xsl:otherwise></xsl:choose>';
+		}
 	}
 
 	public function onDisplay($event)
