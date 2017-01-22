@@ -8,8 +8,9 @@
 namespace s9e\mediaembed;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use s9e\TextFormatter\Configurator\Bundles\MediaPack as MediaPackConfigurator;
 use s9e\TextFormatter\Bundles\MediaPack;
+use s9e\TextFormatter\Configurator\Bundles\MediaPack as MediaPackConfigurator;
+use s9e\TextFormatter\Configurator\Items\UnsafeTemplate;
 
 class listener implements EventSubscriberInterface
 {
@@ -29,38 +30,29 @@ class listener implements EventSubscriberInterface
 	public function onConfigure($event)
 	{
 		$configurator = $event['configurator'];
-		$attrMap      = array();
-		foreach ($configurator->MediaEmbed->defaultSites as $siteId => $definition)
+		$templates    = array();
+		foreach ($configurator->tags as $tagName => $tag)
 		{
-			if (isset($configurator->BBCodes[$siteId]))
+			if (isset($configurator->BBCodes[$tagName]))
 			{
-				$configurator->BBCodes[$siteId]->defaultAttribute  = 'url';
-				$configurator->BBCodes[$siteId]->contentAttributes = array('url');
-			}
-			if (isset($configurator->tags[$siteId]))
-			{
-				foreach ($configurator->tags[$siteId]->attributes as $attrName => $attribute)
-				{
-					if ($attrName === 'id')
-					{
-						break;
-					}
-				}
-				$attrMap[$siteId] = $attrName;
+				$templates[$tagName] = (string) $tag->template;
 			}
 		}
 
 		$bundleConfigurator = new MediaPackConfigurator;
 		$bundleConfigurator->configure($configurator);
-
-		foreach ($attrMap as $siteId => $attrName)
+		foreach ($templates as $tagName => $template)
 		{
-			$tag = $configurator->tags[$siteId];
-			if (!isset($tag->attributes['id']))
+			$tag = $configurator->tags[$tagName];
+			if ($tag->template == $template)
 			{
 				continue;
 			}
-			$tag->template = '<xsl:choose><xsl:when test="@id">' . $tag->template . '</xsl:when><xsl:otherwise>' . str_replace('@id', '@' . $attrName, $tag->template) . '</xsl:otherwise></xsl:choose>';
+
+			$configurator->BBCodes[$tagName]->defaultAttribute  = 'url';
+			$configurator->BBCodes[$tagName]->contentAttributes = array('url');
+
+			$tag->template = new UnsafeTemplate('<xsl:choose><xsl:when test="@url">' . $tag->template . '</xsl:when><xsl:otherwise>' . $template . '</xsl:otherwise></xsl:choose>');
 		}
 	}
 
