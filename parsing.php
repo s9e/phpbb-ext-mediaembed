@@ -277,7 +277,7 @@ class Parser
 		$this->outputText($this->textLen, 0, \true);
 		do
 		{
-			$this->output = \preg_replace('(<([^ />]+)[^>]*></\\1>)', '', $this->output, -1, $cnt);
+			$this->output = \preg_replace('(<([^ />]++)[^>]*></\\1>)', '', $this->output, -1, $cnt);
 		}
 		while ($cnt > 0);
 		if (\strpos($this->output, '</i><i>') !== \false)
@@ -568,8 +568,9 @@ class Parser
 					$ancestorName = $ancestor->getName();
 					if (isset($tagConfig['rules']['closeAncestor'][$ancestorName]))
 					{
+						++$this->currentFixingCost;
 						$this->tagStack[] = $tag;
-						$this->addMagicEndTag($ancestor, $tag->getPos());
+						$this->addMagicEndTag($ancestor, $tag->getPos(), $tag->getSortPriority() - 1);
 						return \true;
 					}
 				}
@@ -589,8 +590,9 @@ class Parser
 				$parentName = $parent->getName();
 				if (isset($tagConfig['rules']['closeParent'][$parentName]))
 				{
+					++$this->currentFixingCost;
 					$this->tagStack[] = $tag;
-					$this->addMagicEndTag($parent, $tag->getPos());
+					$this->addMagicEndTag($parent, $tag->getPos(), $tag->getSortPriority() - 1);
 					return \true;
 				}
 			}
@@ -785,8 +787,9 @@ class Parser
 			$tag->invalidate();
 			return;
 		}
-		if ($this->fosterParent($tag) || $this->closeParent($tag) || $this->closeAncestor($tag))
-			return;
+		if ($this->currentFixingCost < $this->maxFixingCost)
+			if ($this->fosterParent($tag) || $this->closeParent($tag) || $this->closeAncestor($tag))
+				return;
 		if ($this->cntOpen[$tagName] >= $tagConfig['nestingLimit'])
 		{
 			$this->logger->err(
@@ -1234,7 +1237,10 @@ class BuiltInFilters
 		$parts['scheme'] = \strtolower($parts['scheme']);
 		$parts['host'] = \rtrim(\preg_replace("/\xE3\x80\x82|\xEF(?:\xBC\x8E|\xBD\xA1)/s", '.', $parts['host']), '.');
 		if (\preg_match('#[^[:ascii:]]#', $parts['host']) && \function_exists('idn_to_ascii'))
-			$parts['host'] = \idn_to_ascii($parts['host']);
+		{
+			$variant = (\defined('INTL_IDNA_VARIANT_UTS46')) ? \INTL_IDNA_VARIANT_UTS46 : 0;
+			$parts['host'] = \idn_to_ascii($parts['host'], 0);
+		}
 		return $parts;
 	}
 	protected static function rebuildUrl(array $p)
@@ -1604,9 +1610,12 @@ class Parser extends ParserBase
 		if ($tag->hasAttribute('url'))
 		{
 			$url = $tag->getAttribute('url');
-			if (\preg_match('#^https?://[^<>"\'\\s]+$#D', $url))
+			if (\preg_match('#^https?://[^<>"\'\\s]+$#Di', $url))
+			{
+				$url = \strtolower(\substr($url, 0, 5)) . \substr($url, 5);
 				foreach ($scrapeConfig as $scrape)
 					self::scrapeEntry($url, $tag, $scrape, $cacheDir);
+			}
 		}
 		return \true;
 	}
